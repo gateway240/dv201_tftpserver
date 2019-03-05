@@ -1,5 +1,7 @@
 package dv201.tftpserver;
 
+import dv201.tftpserver.enums.OpCodes;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -12,11 +14,6 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
 import static dv201.tftpserver.TFTPServerLib.BUFSIZE;
-import static dv201.tftpserver.TFTPServerLib.OP_ACK;
-import static dv201.tftpserver.TFTPServerLib.OP_DAT;
-import static dv201.tftpserver.TFTPServerLib.OP_ERR;
-import static dv201.tftpserver.TFTPServerLib.OP_RRQ;
-import static dv201.tftpserver.TFTPServerLib.OP_WRQ;
 import static dv201.tftpserver.TFTPServerLib.READDIR;
 import static dv201.tftpserver.TFTPServerLib.TFTPPORT;
 import static dv201.tftpserver.TFTPServerLib.TIMEOUT;
@@ -79,7 +76,7 @@ public class TFTPServer {
 			final StringBuffer requestedFile = new StringBuffer();
 			final int reqtype = (int) receivePacket.getData()[1]; // the opcode is in the first two bytes but max 5 so its always just the second byte
 
-			if (reqtype != OP_RRQ && reqtype != OP_WRQ){
+			if (reqtype != OpCodes.OP_RRQ.getValue() && reqtype != OpCodes.OP_WRQ.getValue()){
 				checkError(receivePacket);
 				send_ERR(sendSocket, 4, "Not Read request, nor Write Request");
 				continue;
@@ -116,11 +113,11 @@ public class TFTPServer {
 						sendSocket.connect(clientAddress); // no foreign messages
 
 						System.out.printf("%s request for %s from %s using port %d\n",
-								(reqtype == OP_RRQ) ? "Read" : "Write", requestedFile.toString(), clientAddress.getHostString(),
+								(reqtype == OpCodes.OP_RRQ.getValue()) ? "Read" : "Write", requestedFile.toString(), clientAddress.getHostString(),
 								clientAddress.getPort());
 
 						// Read request
-						if (reqtype == OP_RRQ) {
+						if (reqtype == OpCodes.OP_RRQ.getValue()) {
 							requestedFile.insert(0, READDIR);
 							send_DATA_receive_ACK(sendSocket, requestedFile.toString());
 						}
@@ -170,7 +167,7 @@ public class TFTPServer {
 						send_ERR(sendSocket, 2, "Error - File can not be readen");
 						return;
 					}					
-					buffer[1] = OP_DAT;
+					buffer[1] = (byte) OpCodes.OP_DAT.getValue();
 					buffer[2] = (byte) ((sendPacketIndex & 0x0000FF00) >> 8);
 					buffer[3] = (byte) (sendPacketIndex & 0x000000FF);
 				}else if (resend > 5){
@@ -206,14 +203,14 @@ public class TFTPServer {
 				ackOpcode = receivePacket.getData()[1];
 				ackIndex = Byte.toUnsignedInt(receivePacket.getData()[2]) * 256
 						+ Byte.toUnsignedInt(receivePacket.getData()[3]);
-						
-				if (ackOpcode != OP_ACK){
+
+				if (ackOpcode != OpCodes.OP_ACK.getValue()){
 					checkError(receivePacket);
 					send_ERR(sendSocket, 4, "Error - Opcode was not for ACK");
 					return;
 				}
 				
-				if (ackOpcode != OP_ACK || ackIndex != sendPacketIndex) {
+				if (ackOpcode != OpCodes.OP_ACK.getValue() || ackIndex != sendPacketIndex) {
 					System.err.println("received index was wrong: " + ackIndex);
 					resend++;
 					continue; // sends the same message again
@@ -257,7 +254,7 @@ public class TFTPServer {
 
 			// send first Ack for starting the writing
 			byte[] startAckBuf = new byte[4]; // Ack messages are always 4 Bytes
-			startAckBuf[1] = OP_ACK;
+			startAckBuf[1] = (byte) OpCodes.OP_ACK.getValue();
 			startAckBuf[2] = 0;
 			startAckBuf[3] = 0;
 
@@ -289,7 +286,7 @@ public class TFTPServer {
 
 
 				int opcode = receivePacket.getData()[1];
-				if (opcode != OP_DAT){
+				if (opcode != OpCodes.OP_DAT.getValue()){
 					checkError(receivePacket);
 					send_ERR(sendSocket, 4, "Error - Opcode was not for DATA");
 					return;
@@ -303,7 +300,7 @@ public class TFTPServer {
 
 				// send Ack
 				byte[] ackBuf = new byte[4]; // Ack messages are always 4 Bytes
-				ackBuf[1] = OP_ACK;
+				ackBuf[1] = (byte) OpCodes.OP_ACK.getValue();
 				ackBuf[2] = (byte) ((blockIndex & 0x0000FF00) >> 8);
 				ackBuf[3] = (byte) (blockIndex & 0x000000FF);
 				
@@ -337,7 +334,7 @@ public class TFTPServer {
 	private void send_ERR(DatagramSocket sendSocket, int errorcode, String message) {
 		System.err.println(message);
 		byte[] buffer = new byte[5+message.getBytes().length];
-		buffer[1] = OP_ERR;
+		buffer[1] = (byte) OpCodes.OP_ERR.getValue();
 		buffer[2] = 0;
 		buffer[3] = (byte) errorcode;
 		System.arraycopy(message.getBytes(), 0, buffer, 0, message.getBytes().length);
@@ -356,7 +353,7 @@ public class TFTPServer {
 	private void checkError(DatagramPacket receivePacket){
 		int opcode = receivePacket.getData()[1];
 
-		if (opcode == OP_ERR){
+		if (opcode == OpCodes.OP_ERR.getValue()){
 			int errorcode = receivePacket.getData()[3];			
 		
 
