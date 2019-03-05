@@ -1,3 +1,5 @@
+package dv201.tftpserver;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -9,23 +11,19 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
-public class TFTPServer {
-	public static final int TFTPPORT = 4970; // instead of 69
-	public static final int BUFSIZE = 516;
-	public static final int TIMEOUT = 10000;
-	public static final int TIMEOUT_WRITE = 50000;
-	public static final String READDIR = "read/"; // custom address at your PC
-	public static final String WRITEDIR = "write/"; // custom address at your PC
-	// OP codes
-	public static final int OP_RRQ = 1;
-	public static final int OP_WRQ = 2;
-	public static final int OP_DAT = 3;
-	public static final int OP_ACK = 4;
-	public static final int OP_ERR = 5;
+import static dv201.tftpserver.TFTPServerLib.BUFSIZE;
+import static dv201.tftpserver.TFTPServerLib.OP_ACK;
+import static dv201.tftpserver.TFTPServerLib.OP_DAT;
+import static dv201.tftpserver.TFTPServerLib.OP_ERR;
+import static dv201.tftpserver.TFTPServerLib.OP_RRQ;
+import static dv201.tftpserver.TFTPServerLib.OP_WRQ;
+import static dv201.tftpserver.TFTPServerLib.READDIR;
+import static dv201.tftpserver.TFTPServerLib.TFTPPORT;
+import static dv201.tftpserver.TFTPServerLib.TIMEOUT;
+import static dv201.tftpserver.TFTPServerLib.TIMEOUT_WRITE;
+import static dv201.tftpserver.TFTPServerLib.WRITEDIR;
 
-	// TODO   3         Disk full or allocation exceeded.
-   	// TODO   4         Illegal TFTP operation. --> Started
-   	// TODO   5         Unknown transfer ID. --> I do not get this messages because the socket connect, so???
+public class TFTPServer {
 
 	public static void main(String[] args) {
 		if (args.length > 0) {
