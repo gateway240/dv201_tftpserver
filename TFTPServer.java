@@ -180,7 +180,7 @@ public class TFTPServer {
 					// if no resend
 					//# buffer = new byte[BUFSIZE];
 
-					// file the buffer
+					// fill the buffer
 					try {
 						len = filestream.read(buffer, 4, 512);
 					} catch (Exception e) {
@@ -238,7 +238,7 @@ public class TFTPServer {
 				}
 				
 
-				// check the acknowledget block index
+				// check the acknowledgment block index
 				if (ackIndex != sendPacketIndex) {
 					System.err.println("received index was wrong: " + ackIndex);
 					resend++; // not neccessary but assignment says...
@@ -311,17 +311,17 @@ public class TFTPServer {
 			sendSocket.send(sendStartPacket);
 			System.out.println("Send starting Ack");
 
-			// getting the data and sending the ack till data packet is smaller than 512 bytes respectivly UDP packet smaller than 516
+			// getting the data and sending the ack until the data packet is smaller than 512 bytes respectivly UDP packet smaller than 516
 			byte[] buffer = new byte[BUFSIZE];
 			while (true) {
 				// receiving the data
 				DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
-				sendSocket.setSoTimeout(TIMEOUT_WRITE); // if you get a unknown TID, than the timeout starts from beginning. This happens so unlikely that I do not care
+				sendSocket.setSoTimeout(TIMEOUT_WRITE); // if you get a unknown TID, than the timeout starts from beginning. This happens so rarely that it is not relevant
 				do {
 					try {
 						sendSocket.receive(receivePacket);
 						if (receivePacket.getPort() != tid) {
-							send_ERR(sendSocket, 5, "Error - wrong transfer ID. Connection is not closed", receivePacket.getAddress(), receivePacket.getPort()); //TODO send it to the right client
+							send_ERR(sendSocket, 5, "Error - wrong transfer ID. Connection is not closed", receivePacket.getAddress(), receivePacket.getPort());
 						}
 					} catch (SocketTimeoutException e) {
 						System.out.println("Data Timeout");
@@ -419,7 +419,7 @@ public class TFTPServer {
 	}
 
 
-	// checks for a received packet, if it is a error message and if so prints the message
+	// checks for a received packet. if it is an error message then print the message
 	private void checkError(DatagramPacket receivePacket){
 		// extract the Op-Code
 		int opcode = receivePacket.getData()[1];
