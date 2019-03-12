@@ -297,7 +297,7 @@ public class TFTPServer {
 			try {
 				filestream = new FileOutputStream(fileToSave);
 			} catch (IOException e) {
-				send_ERR(sendSocket, 2, "Error - File can be opened", inetAddress, tid); // 2 = Access Violation
+				send_ERR(sendSocket, 2, "Error - File cannot be opened", inetAddress, tid); // 2 = Access Violation
 				return;
 			}
 			
@@ -348,6 +348,16 @@ public class TFTPServer {
 				if (blockIndex != blockIndexReceived+1){
 					// ignore a data packet that has not the right index
 					System.err.println("received a data packet with a wrong block index: " + blockIndex);
+
+
+					// send Ack
+					byte[] ackBuf = new byte[4]; // Ack messages are always 4 Bytes
+					ackBuf[1] = OP_ACK;
+					ackBuf[2] = (byte) ((blockIndex & 0x0000FF00) >> 8);
+					ackBuf[3] = (byte) (blockIndex & 0x000000FF);
+					DatagramPacket sendPacket = new DatagramPacket(ackBuf, 4, inetAddress, tid);
+					sendSocket.send(sendPacket);
+					System.out.println("Send Ack " + blockIndex);
 					continue;
 				}
 				blockIndexReceived = blockIndex;
@@ -356,6 +366,7 @@ public class TFTPServer {
 					// maximum count of data blocks reached.
 					// In this implementation of the basis TFTP from the RFC 1350, we can not handle this case
 					System.err.println("maximum count of data blocks reached. - Now we maybe gonna see many errors...");
+
 				}
 
 				// writes the data in the file
