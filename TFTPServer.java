@@ -15,6 +15,7 @@ public class TFTPServer {
 	public static final int BUFSIZE = 516;
 	public static final int TIMEOUT = 10000;
 	public static final int TIMEOUT_WRITE = 50000;
+	public static final int TIMEOUT_LAST = 2000;
 	public static final String READDIR = "read/"; // custom address at my PC
 	public static final String WRITEDIR = "write/"; // custom address at my PC
 	
@@ -143,7 +144,9 @@ public class TFTPServer {
 							ignore.printStackTrace();
 						}
 					}
+					System.out.println("done...");
 				}
+				
 			}.start();
 		}
 	}
@@ -175,6 +178,7 @@ public class TFTPServer {
 			
 			byte[] buffer = new byte[BUFSIZE];
 			int len = -4; // -4 is never used
+			receiveMessage:
 			while (true) {
 				if (resend==0){
 					// if no resend
@@ -216,7 +220,7 @@ public class TFTPServer {
 					} catch (SocketTimeoutException e) {					
 						System.out.println("Ack Timeout");
 						resend++;
-						continue; // sends the same message again
+						continue receiveMessage; // sends the same message again
 					} catch (Exception e) {
 						e.printStackTrace();
 						send_ERR(sendSocket, 0, "unknown Error - receiving the Ack message", inetAddress, tid);
@@ -313,6 +317,7 @@ public class TFTPServer {
 
 			// getting the data and sending the ack until the data packet is smaller than 512 bytes respectivly UDP packet smaller than 516
 			byte[] buffer = new byte[BUFSIZE];
+			sendMessage:
 			while (true) {
 				// receiving the data
 				DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
@@ -349,15 +354,14 @@ public class TFTPServer {
 					// ignore a data packet that has not the right index
 					System.err.println("received a data packet with a wrong block index: " + blockIndex);
 
-
 					// send Ack
 					byte[] ackBuf = new byte[4]; // Ack messages are always 4 Bytes
 					ackBuf[1] = OP_ACK;
-					ackBuf[2] = (byte) ((blockIndex & 0x0000FF00) >> 8);
-					ackBuf[3] = (byte) (blockIndex & 0x000000FF);
+					ackBuf[2] = (byte) ((blockIndexReceived & 0x0000FF00) >> 8);
+					ackBuf[3] = (byte) (blockIndexReceived & 0x000000FF);
 					DatagramPacket sendPacket = new DatagramPacket(ackBuf, 4, inetAddress, tid);
 					sendSocket.send(sendPacket);
-					System.out.println("Send Ack " + blockIndex);
+					System.out.println("Send Ack " + blockIndexReceived);
 					continue;
 				}
 				blockIndexReceived = blockIndex;
@@ -387,8 +391,29 @@ public class TFTPServer {
 				System.out.println("Send Ack " + blockIndex);
 
 				// if this was the last packet, stop the transfer
-				if (receivePacket.getLength() != 516)
-					break;
+				if (receivePacket.getLength() != 516) {
+					while (true){
+						//wait a specific time for a resending of the data packet, than send the ack again.
+						DatagramPacket receiveLastPacket = new DatagramPacket(buffer, buffer.length);
+						sendSocket.setSoTimeout(TIMEOUT_LAST);
+						try {
+							sendSocket.receive(receiveLastPacket);						
+						} catch (SocketTimeoutException e) {
+							// no data was resend. Transfer is done
+							break sendMessage;
+						}
+						if (receiveLastPacket.getPort() != tid) {
+							send_ERR(sendSocket, 5, "Error - wrong transfer ID. Connection is not closed", receiveLastPacket.getAddress(), receiveLastPacket.getPort());
+						}else{
+							if (checkError(receiveLastPacket)){
+								return;
+							}
+							//only checked if the message is a error message, if not just resend the last Ack
+							sendSocket.send(sendPacket);
+							System.out.println("Send Ack " + blockIndex);
+						}
+					}
+				}
 			}
 			// the whole file is received
 		} catch (Exception e) {
@@ -431,7 +456,7 @@ public class TFTPServer {
 
 
 	// checks for a received packet. if it is an error message then print the message
-	private void checkError(DatagramPacket receivePacket){
+	private boolean checkError(DatagramPacket receivePacket){
 		// extract the Op-Code
 		int opcode = receivePacket.getData()[1];
 
@@ -455,6 +480,9 @@ public class TFTPServer {
 
 			// print error
 			System.err.println("Received Error message: '" + errormessage.toString() + "' with code: " + errorcode);
+			return true;
+		}else{
+			return false;
 		}
 	}
 }
